@@ -33,7 +33,24 @@ export function useWebSocket(url) {
     ws.current.onopen = () => setStatus("connected");
 
     ws.current.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (e) {
+        // Rust backend plain text bhejta hai
+        data = {
+          type: "message",
+          message: {
+            id: Date.now(),
+            sender: "server",
+            senderName: "AI",
+            text: event.data,
+            timestamp: new Date().toISOString(),
+            reactions: {},
+          }
+        };
+      }
+
       if (data.type === "typing") {
         setIsTyping(data.isTyping);
       } else if (data.type === "history") {
@@ -48,23 +65,11 @@ export function useWebSocket(url) {
       }
     };
 
-    ws.current.onclose = () => {
-      setStatus("disconnected");
-      // Auto reconnect 3 sec baad
-      setTimeout(() => {
-        setStatus("disconnected");
-      }, 3000);
-    };
-
+    ws.current.onclose = () => setStatus("disconnected");
     ws.current.onerror = () => setStatus("disconnected");
 
     return () => ws.current.close();
   }, [url]);
-
-  function save(updated) {
-    localStorage.setItem("chat_messages", JSON.stringify(updated));
-    setMessages(updated);
-  }
 
   function send(text, senderName, image = null) {
     if (!ws.current) return;
@@ -79,7 +84,8 @@ export function useWebSocket(url) {
       edited: false,
     };
     if (ws.current.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({ type: "message", text }));
+      // Rust backend plain text expect karta hai
+      ws.current.send(text);
     }
     setMessages(prev => {
       const updated = [...prev, newMsg];
@@ -91,7 +97,7 @@ export function useWebSocket(url) {
   function deleteMessage(id) {
     setMessages(prev => {
       const updated = prev.filter(m => m.id !== id);
-      save(updated);
+      localStorage.setItem("chat_messages", JSON.stringify(updated));
       return updated;
     });
     if (pinnedId === id) pinMessage(null);
