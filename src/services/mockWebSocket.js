@@ -1,4 +1,4 @@
-const GROQ_API_KEY = "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"; 
+const GROQ_API_KEY = "YOUR_KEY_HERE";
 
 const ALICE_PERSONALITY = `You are Alice, a smart and witty senior developer colleague in a team chat app called WS Chat. 
 
